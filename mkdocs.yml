@@ -1,0 +1,34 @@
+site_name: Paper Cards
+site_description: 논문 High-Level Card 모음
+docs_dir: cards
+
+theme:
+  name: material
+  language: ko
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: 다크 모드
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: 라이트 모드
+  features:
+    - navigation.tabs        # 상단 탭 = 키워드(폴더)
+    - navigation.sections    # 사이드바에서 논문들을 섹션으로
+    - navigation.instant
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+
+plugins:
+  - search

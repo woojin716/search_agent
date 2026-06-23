@@ -1,0 +1,25 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Secrets
+.env
+
+# OS
+.DS_Store
+
+# Input / generated artifacts (사이트는 로컬에서만 관리, 레포엔 코드만)
+papers/
+.cache/
+results/
+cards/
+
+# MkDocs build output
+site/
