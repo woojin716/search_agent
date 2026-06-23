@@ -1,5 +1,6 @@
 site_name: Paper Cards
 site_description: 논문 High-Level Card 모음
+site_url: https://woojin716.github.io/search_agent/
 docs_dir: cards
 
 theme:

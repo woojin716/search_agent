@@ -17,13 +17,12 @@ cd /Users/jeong-woojin/workspace/search_agent
 # 2. Summarize a paper. Pass a link, title, or PDF path
 uv run python summary.py "<link or title or PDF path>" -t "<keyword>"
 
-# 3. Start the site, then open http://127.0.0.1:8000 in a browser
-uv run mkdocs serve
+# 3. Publish the site
+uv run mkdocs gh-deploy
 ```
 
 - No need to set up a virtual environment. `uv run` handles it automatically, so you don't need `source .venv/bin/activate`.
 - Run `uv sync` only the first time or when dependencies change.
-- The site is not always up. It runs only while `uv run mkdocs serve` is running and stops when you close the terminal or press Ctrl+C. It is reachable only from your own machine over localhost.
 
 ## Setup
 
@@ -68,16 +67,16 @@ uv run python main.py
 
 Searches OpenAlex and OpenReview for papers from the last 3 years, scores them by relevance, venue, recency, and impact, then saves the Top N.
 
-## Site — card visualization
+## Site
 
-Groups the cards in `cards/` into keyword tabs as a searchable site. `cards/` is not tracked in the repo, so the site is built locally.
+Cards in `cards/` are published as a searchable site grouped by keyword tabs.
+
+Live site: https://woojin716.github.io/search_agent/
 
 ```bash
-uv run mkdocs serve     # local site at http://127.0.0.1:8000
-uv run mkdocs build     # generate a static site into site/
+uv run mkdocs serve        # preview at http://127.0.0.1:8000
+uv run mkdocs gh-deploy    # publish or update the live site
 ```
-
-Local site link: http://127.0.0.1:8000
 
 - Top tabs are subfolders under `cards/`
 - Sidebar lists the papers within a folder
