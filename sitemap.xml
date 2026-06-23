@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://woojin716.github.io/papers/</loc>
+         <lastmod>2026-06-23</lastmod>
+    </url>
+    <url>
+         <loc>https://woojin716.github.io/papers/causal_inference/adjusting_prediction_model_through_wasserstein_geodesic_for_/</loc>
+         <lastmod>2026-06-23</lastmod>
+    </url>
+    <url>
+         <loc>https://woojin716.github.io/papers/causal_inference/exploratory_causal_inference_in_saence/</loc>
+         <lastmod>2026-06-23</lastmod>
+    </url>
+    <url>
+         <loc>https://woojin716.github.io/papers/causal_inference/foundation_models_for_causal_inference_via_prior_data_fitted/</loc>
+         <lastmod>2026-06-23</lastmod>
+    </url>
+    <url>
+         <loc>https://woojin716.github.io/papers/llm_interpretability/addressing_divergent_representations_from_causal_interventio/</loc>
+         <lastmod>2026-06-23</lastmod>
+    </url>
+    <url>
+         <loc>https://woojin716.github.io/papers/llm_interpretability/causality_invariance_function_and_concept_vectors_in_llms/</loc>
+         <lastmod>2026-06-23</lastmod>
+    </url>
+    <url>
+         <loc>https://woojin716.github.io/papers/llm_interpretability/sparse_feature_circuits_discovering_and_editing_interpretabl/</loc>
+         <lastmod>2026-06-23</lastmod>
+    </url>
+</urlset>
