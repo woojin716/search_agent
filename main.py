@@ -340,6 +340,33 @@ def save_results(query: str, papers: list[dict], out_dir: str = "results") -> Pa
 
 
 # ---------------------------------------------------------------------------
+# 사이트용 — 검색 결과를 Markdown 표 페이지로 (cards/searches/ → "Searches" 탭)
+# ---------------------------------------------------------------------------
+def save_search_page(query: str, papers: list[dict],
+                     out_dir: str = "cards/searches") -> Path:
+    slug = re.sub(r"[^a-z0-9]+", "_", query.lower()).strip("_") or "query"
+    path = Path(out_dir) / f"{slug}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    def cell(text: str) -> str:                       # 표 안 파이프 깨짐 방지
+        return str(text).replace("|", "\\|")
+
+    rows = [f"# {query}", "",
+            f"검색 결과 Top {len(papers)}.", "",
+            "| # | Year | Venue | Title |",
+            "|---|------|-------|-------|"]
+    for i, p in enumerate(papers, 1):
+        link = p["url"] or p["arxiv_url"]
+        title = f"[{cell(p['title'])}]({link})" if link else cell(p["title"])
+        grade = f" ({p['grade']})" if p["grade"] else ""
+        venue = cell((p["venue"] or "N/A") + grade)
+        rows.append(f"| {i} | {p['year']} | {venue} | {title} |")
+
+    path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+    return path
+
+
+# ---------------------------------------------------------------------------
 # 실행
 # ---------------------------------------------------------------------------
 def main():
@@ -378,8 +405,10 @@ def main():
         print(f"    APA      : {apa_citation(p)}")
 
     path = save_results(query, top)
+    page = save_search_page(query, top)
     print("\n" + "=" * 60)
     print(f"저장 완료: {path}  ({len(top)}편)")
+    print(f"사이트 페이지: {page}  (mkdocs 'Searches' 탭)")
 
 
 if __name__ == "__main__":
