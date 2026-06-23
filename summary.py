@@ -31,6 +31,7 @@ from pydantic import BaseModel
 load_dotenv()
 
 MODEL = "gemini-2.5-flash-lite"
+MAX_RETRIES = 6   # Gemini 429/503 재시도 횟수
 
 # 본문에서 추출할 섹션만 (나머지는 의도적으로 무시한다)
 INTRO_HEADERS = ("introduction", "background", "overview")

@@ -1,83 +1,83 @@
 # search_agent
 
-논문 탐색·요약 도구.
+Paper search and summarization tools.
 
-- `main.py` — 키워드로 최신 논문을 검색해 점수화하고 Top N을 CSV로 저장
-- `summary.py` — 논문 1편을 High-Level Card(Markdown)로 요약
-- MkDocs 사이트 — 생성된 카드를 키워드 탭으로 시각화
+- `main.py` — search recent papers by keyword, score them, save Top N as CSV
+- `summary.py` — summarize a single paper into a High-Level Card in Markdown
+- MkDocs site — visualize generated cards as keyword tabs
 
-## 빠른 실행 (컴퓨터 켠 뒤)
+## Quickstart
 
-터미널을 열고 순서대로:
+Open a terminal and run in order:
 
 ```bash
-# 1. 프로젝트 폴더로 이동
+# 1. Go to the project folder
 cd /Users/jeong-woojin/workspace/search_agent
 
-# 2. 논문 요약 (링크/제목/PDF 중 아무거나)
-uv run python summary.py "<논문 링크 or 제목 or PDF경로>" -t "<키워드>"
+# 2. Summarize a paper. Pass a link, title, or PDF path
+uv run python summary.py "<link or title or PDF path>" -t "<keyword>"
 
-# 3. 사이트 띄우기 → 브라우저에서 http://127.0.0.1:8000 열기
+# 3. Start the site, then open http://127.0.0.1:8000 in a browser
 uv run mkdocs serve
 ```
 
-- 가상환경은 따로 만들 필요 없음. `uv run`이 자동으로 처리한다. (`source .venv/bin/activate` 불필요)
-- 처음 한 번만, 또는 의존성이 바뀌었을 때만 `uv sync` 실행.
-- **사이트는 항상 떠 있지 않다.** `uv run mkdocs serve`를 실행하는 동안에만 보이고, 터미널을 닫거나 `Ctrl+C`를 누르면 내려간다. 본인 컴퓨터(localhost)에서만 접속 가능.
+- No need to set up a virtual environment. `uv run` handles it automatically, so you don't need `source .venv/bin/activate`.
+- Run `uv sync` only the first time or when dependencies change.
+- The site is not always up. It runs only while `uv run mkdocs serve` is running and stops when you close the terminal or press Ctrl+C. It is reachable only from your own machine over localhost.
 
-## 설치
+## Setup
 
 ```bash
 uv sync
 ```
 
-`.env`에 Gemini API 키 설정:
+Set the Gemini API key in `.env`:
 
 ```
 GEMINI_API_KEY=your_key_here
 ```
 
-## summary.py — 논문 요약
+## summary.py — paper summarization
 
-입력(title / URL / PDF)을 자동 판별한다.
+The input type is detected automatically: title, URL, or PDF.
 
 ```bash
 uv run python summary.py 1706.03762                          # arXiv ID
 uv run python summary.py "https://arxiv.org/abs/2310.06825"  # arXiv URL
 uv run python summary.py "https://openreview.net/forum?id=LmLmhb6GEL"  # OpenReview URL
 uv run python summary.py "https://example.com/paper.pdf"     # PDF URL
-uv run python summary.py paper.pdf                           # 로컬 PDF
-uv run python summary.py "attention is all you need"         # 제목 검색
-uv run python summary.py                                     # 인자 없으면 프롬프트
+uv run python summary.py paper.pdf                           # local PDF
+uv run python summary.py "attention is all you need"         # title search
+uv run python summary.py                                     # no args, prompts for input
 ```
 
-`--topic`(또는 `-t`)으로 키워드를 지정하면 해당 폴더에 저장되고, 사이트에서 탭이 된다. 생략하면 실행 중 물어본다.
+Use `--topic` or `-t` to set a keyword. The card is saved under that folder and becomes a tab on the site. If omitted, you are prompted during the run.
 
 ```bash
 uv run python summary.py 1706.03762 --topic "transformers"
 ```
 
-출력: 화면 + `cards/<키워드>/<제목>.md`. 카드 구성 — Motivation / Problem / Key Idea / Method / Contribution / Result.
+Output goes to the console and to `cards/<keyword>/<title>.md`. Card sections: Motivation, Problem, Key Idea, Method, Contribution, Result.
 
-## main.py — 논문 검색
+## main.py — paper search
 
 ```bash
 uv run python main.py
-# 검색어 입력 → results/<검색어>.csv 저장
+# enter a query, saved to results/<query>.csv
 ```
 
-OpenAlex + OpenReview에서 최근 3년 논문을 검색해 관련성·venue·최신성·영향력으로 점수화한 뒤 Top N을 저장한다.
+Searches OpenAlex and OpenReview for papers from the last 3 years, scores them by relevance, venue, recency, and impact, then saves the Top N.
 
-## 사이트 (논문 카드 시각화)
+## Site — card visualization
 
-`cards/`의 카드를 키워드 탭으로 묶어 검색 가능한 사이트로 본다. `cards/`는 레포에 포함하지 않으므로 사이트는 로컬에서 빌드한다.
+Groups the cards in `cards/` into keyword tabs as a searchable site. `cards/` is not tracked in the repo, so the site is built locally.
 
 ```bash
-uv run mkdocs serve     # 로컬 사이트 → http://127.0.0.1:8000
-uv run mkdocs build     # site/ 에 정적 사이트 생성
+uv run mkdocs serve     # local site at http://127.0.0.1:8000
+uv run mkdocs build     # generate a static site into site/
 ```
 
-사이트 링크 (로컬): http://127.0.0.1:8000
+Local site link: http://127.0.0.1:8000
 
-- 상단 탭 = `cards/` 하위 폴더(키워드)
-- 사이드바 = 폴더 안의 논문들
+- Top tabs are subfolders under `cards/`
+- Sidebar lists the papers within a folder
