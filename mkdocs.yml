@@ -25,6 +25,7 @@ theme:
 
 markdown_extensions:
   - admonition
+  - md_in_html        # <div markdown> 안에서도 마크다운 렌더링
   - pymdownx.highlight
   - pymdownx.superfences
   - toc:

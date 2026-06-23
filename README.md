@@ -6,6 +6,25 @@
 - `summary.py` — 논문 1편을 High-Level Card(Markdown)로 요약
 - MkDocs 사이트 — 생성된 카드를 키워드 탭으로 시각화
 
+## 빠른 실행 (컴퓨터 켠 뒤)
+
+터미널을 열고 순서대로:
+
+```bash
+# 1. 프로젝트 폴더로 이동
+cd /Users/jeong-woojin/workspace/search_agent
+
+# 2. 논문 요약 (링크/제목/PDF 중 아무거나)
+uv run python summary.py "<논문 링크 or 제목 or PDF경로>" -t "<키워드>"
+
+# 3. 사이트 띄우기 → 브라우저에서 http://127.0.0.1:8000 열기
+uv run mkdocs serve
+```
+
+- 가상환경은 따로 만들 필요 없음. `uv run`이 자동으로 처리한다. (`source .venv/bin/activate` 불필요)
+- 처음 한 번만, 또는 의존성이 바뀌었을 때만 `uv sync` 실행.
+- **사이트는 항상 떠 있지 않다.** `uv run mkdocs serve`를 실행하는 동안에만 보이고, 터미널을 닫거나 `Ctrl+C`를 누르면 내려간다. 본인 컴퓨터(localhost)에서만 접속 가능.
+
 ## 설치
 
 ```bash

@@ -246,9 +246,10 @@ Do NOT include:
 
 Write in Korean, but keep core technical terms in English.
 Fill each slot of the schema:
-- apa: APA 7th 형식의 인용을 text 로. 주어진 메타데이터(저자/연도/venue/DOI)를 우선 사용하고,
-       없으면 논문 본문 첫 부분에서 저자·연도를 추출해 작성한다. 추출 불가하면 "Not Available".
-       예) Vaswani, A., et al. (2017). Attention is all you need. arXiv preprint. https://doi.org/...
+- apa: APA 7th 형식의 인용을 text 로. 단, 제목은 이미 카드 헤더에 있으므로 **제목은 제외**한다.
+       즉 "저자 (연도). venue.{DOI}" 형태. 주어진 메타데이터(저자/연도/venue/DOI)를 우선 사용하고,
+       없으면 논문 본문 첫 부분에서 저자·연도를 추출한다. 추출 불가하면 "Not Available".
+       예) Vaswani, A., et al. (2017). arXiv preprint. https://doi.org/...
 - motivation: 기존 방법의 한계를 2~3줄로. 왜 이 논문이 필요했는가.
 - problem: 논문이 푸는 문제를 한 문장 + 약간의 formal 한 정의로.
 - key_idea: 이 논문의 본질 한 줄. intuition 중심.
