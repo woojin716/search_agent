@@ -1,5 +1,5 @@
 site_name: Paper Cards
-site_description: 논문 High-Level Card 모음
+site_description: Collection of high-level paper cards
 site_url: https://woojin716.github.io/search_agent/
 docs_dir: cards
 
@@ -16,8 +16,8 @@ theme:
         icon: material/weather-sunny
         name: 라이트 모드
   features:
-    - navigation.tabs        # 상단 탭 = 키워드(폴더)
-    - navigation.sections    # 사이드바에서 논문들을 섹션으로
+    - navigation.tabs        # top tabs = folders
+    - navigation.sections    # papers as sidebar sections
     - navigation.instant
     - navigation.top
     - search.suggest
@@ -26,7 +26,7 @@ theme:
 
 markdown_extensions:
   - admonition
-  - md_in_html        # <div markdown> 안에서도 마크다운 렌더링
+  - md_in_html        # render Markdown inside <div markdown>
   - pymdownx.highlight
   - pymdownx.superfences
   - toc:
@@ -34,4 +34,5 @@ markdown_extensions:
 
 plugins:
   - search
-  - awesome-pages   # cards/.pages 로 탭(폴더) 순서 제어
+  - awesome-pages   # control tab/folder order via cards/.pages
+  - tags   # tag listing renders at the <!-- material/tags --> marker in tags.md

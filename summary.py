@@ -1,16 +1,7 @@
-"""Paper High-Level Card — 논문을 '이해의 압축'으로 변환하는 요약 agent.
+"""Paper high-level card: summarization agent that compresses a paper into understanding.
 
-설계 철학: 이 agent 는 "정보 생성기"가 아니라 "이해 압축기"다.
-    ❌ 수식 · ablation · baseline detail · experimental setup · critique
-    ✅ abstraction · 구조화 · 직관화 · story
-
-파이프라인
-    INPUT (title / URL / PDF)
-      ↓ (1) Fetch + Parse        — arXiv API / 직접 PDF
-      ↓ (2) Section Detection    — abstract / intro / method 만 추출 (나머지 무시)
-      ↓ (3) Semantic Compression — LLM 이 motivation·problem·method·contribution 추출
-      ↓ (4) Template Fill        — 고정 schema slot filling
-    OUTPUT (High-Level Paper Card)
+Pipeline: Fetch + Parse -> Section Detection (abstract/intro/method only)
+-> Semantic Compression (LLM) -> Template Fill -> High-Level Paper Card.
 """
 
 import os
@@ -31,15 +22,14 @@ from pydantic import BaseModel
 load_dotenv()
 
 MODEL = "gemini-2.5-flash-lite"
-MAX_RETRIES = 6   # Gemini 429/503 재시도 횟수
+MAX_RETRIES = 6
 
-# 본문에서 추출할 섹션만 (나머지는 의도적으로 무시한다)
 INTRO_HEADERS = ("introduction", "background", "overview")
 METHOD_HEADERS = (
     "method", "methodology", "approach", "model", "framework",
     "architecture", "proposed", "our ", "preliminaries",
 )
-# 추출을 멈출 섹션 (여기부터는 detail → 무시)
+# Sections where extraction stops (detail beyond this point is ignored).
 STOP_HEADERS = (
     "experiment", "evaluation", "result", "ablation", "related work",
     "conclusion", "discussion", "reference", "appendix", "acknowledg",
@@ -47,17 +37,16 @@ STOP_HEADERS = (
 
 
 # ---------------------------------------------------------------------------
-# (1) Paper Loader — title / URL / PDF → {title, abstract, full_text}
+# (1) Paper loader — title / URL / PDF -> {title, abstract, full_text}
 # ---------------------------------------------------------------------------
 ARXIV_ID = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?")
 
 
 def _arxiv_id_from(text: str) -> str | None:
-    """arXiv URL 또는 bare ID 에서 ID 추출."""
     if "arxiv.org" in text:
         m = ARXIV_ID.search(text)
         return m.group(1) if m else None
-    # 'agent memory' 같은 제목과 구분: 공백 없는 순수 ID 패턴만 인정
+    # Only accept a bare ID with no spaces, to avoid matching titles.
     if re.fullmatch(r"\s*\d{4}\.\d{4,5}(v\d+)?\s*", text):
         return ARXIV_ID.search(text).group(1)
     return None
@@ -86,7 +75,7 @@ def _arxiv_result_to_paper(result) -> dict:
         "year": result.published.year if result.published else None,
         "venue": "arXiv preprint",
         "doi": result.doi,
-        "url": result.entry_id,   # arXiv abs 페이지
+        "url": result.entry_id,
     }
 
 
@@ -107,7 +96,7 @@ def _load_openreview(forum_id: str) -> dict:
     c = note.content
     venue = _openreview_val(c, "venue") or ""
     year = next((int(y) for y in re.findall(r"\d{4}", venue)), None)
-    # 공개 논문 PDF (인증 필요 시 본문 없이 abstract 만으로 진행)
+    # Public PDF; fall back to abstract-only if access is restricted.
     try:
         full = _pdf_to_text(_download(f"https://openreview.net/pdf?id={forum_id}"))
     except Exception:
@@ -135,46 +124,42 @@ def _search_arxiv_by_title(title: str) -> dict:
 
 
 def load_paper(user_input: str) -> dict:
-    """입력 형태(title / URL / PDF)를 자동 판별해 논문을 로드한다."""
+    """Detect input form (title / URL / PDF) and load the paper accordingly."""
     text = user_input.strip()
 
-    # 1) 로컬 PDF 파일
     if text.lower().endswith(".pdf") and Path(text).exists():
         full = _pdf_to_text(text)
         return {"title": Path(text).stem, "abstract": "", "full_text": full,
                 "authors": [], "year": None, "venue": None, "doi": None, "url": None}
 
-    # 2) OpenReview (forum URL)
     if "openreview.net" in text:
         m = re.search(r"id=([\w-]+)", text)
         if m:
             return _load_openreview(m.group(1))
 
-    # 3) arXiv (URL 또는 bare ID)
     aid = _arxiv_id_from(text)
     if aid:
         return _load_arxiv(aid)
 
-    # 4) 직접 PDF URL
     if text.lower().startswith("http") and ".pdf" in text.lower():
         full = _pdf_to_text(_download(text))
         return {"title": text.rsplit("/", 1)[-1], "abstract": "", "full_text": full,
                 "authors": [], "year": None, "venue": None, "doi": None, "url": text}
 
-    # 5) 그 외 → 제목으로 간주, arXiv 검색
+    # Otherwise treat the input as a title and search arXiv.
     return _search_arxiv_by_title(text)
 
 
 # ---------------------------------------------------------------------------
-# (2) Lightweight Structure Extractor — abstract / intro / method 만
+# (2) Lightweight structure extractor — abstract / intro / method only
 # ---------------------------------------------------------------------------
 def _find_section(text: str, headers: tuple, stop: tuple) -> str:
-    """header 로 시작하는 섹션부터 stop header 직전까지를 추출한다."""
+    """Extract from a header line up to the next stop header."""
     lines = text.split("\n")
     capturing, buf = False, []
     for line in lines:
         low = line.strip().lower()
-        # 섹션 제목 줄은 보통 짧다 → 긴 본문 줄이 header 와 우연히 겹치는 것 방지
+        # Section titles are usually short — avoid matching long body lines.
         is_header = len(low) < 60 and low
         if is_header and any(low.startswith(h) or h in low[:25] for h in stop):
             if capturing:
@@ -188,11 +173,11 @@ def _find_section(text: str, headers: tuple, stop: tuple) -> str:
 
 
 def extract_sections(paper: dict) -> dict:
-    """LLM 에 넘길 핵심 텍스트만 추린다. full parsing 은 하지 않는다."""
+    """Keep only the core text passed to the LLM; no full parsing."""
     full = paper.get("full_text", "") or ""
     abstract = paper.get("abstract", "")
 
-    # 본문에서 abstract 보강 (arXiv 가 아닌 경우)
+    # Recover abstract from the body when not provided (non-arXiv sources).
     if not abstract and full:
         m = re.search(r"abstract\s*[\n:]+(.{100,2500}?)(?:\n\s*\n|introduction)",
                       full, re.IGNORECASE | re.DOTALL)
@@ -202,7 +187,7 @@ def extract_sections(paper: dict) -> dict:
     intro = _find_section(full, INTRO_HEADERS, STOP_HEADERS)
     method = _find_section(full, METHOD_HEADERS, STOP_HEADERS)
 
-    # 본문 추출 실패 시(스캔 PDF 등) abstract 만으로도 카드 생성 가능하게 한다
+    # Abstract alone is enough to build a card if body extraction fails.
     return {
         "abstract": abstract[:3000],
         "intro": intro[:6000],
@@ -211,16 +196,17 @@ def extract_sections(paper: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# (3) Semantic Compression Engine — LLM slot filling
+# (3) Semantic compression engine — LLM slot filling
 # ---------------------------------------------------------------------------
 class PaperCard(BaseModel):
-    apa: str                 # APA 7th 인용 (text)
-    motivation: str          # 왜 이 논문이 존재하는가 (기존 한계 2~3줄)
-    problem: str             # 한 문장 + formal-ish 문제 정의
-    key_idea: str            # 본질 한 줄 (intuition)
-    method_steps: list[str]  # high-level pipeline 3~5 step
-    contributions: list[str] # novelty bullet 2~4개
-    result: str              # 성능 향상 여부만 (없으면 "Not Available")
+    apa: str                 # APA 7th citation (text)
+    motivation: str          # why the paper exists (prior limits)
+    problem: str             # one sentence + formal-ish problem definition
+    key_idea: str            # core intuition in one line
+    method_steps: list[str]  # high-level pipeline, 3-5 steps
+    contributions: list[str] # novelty bullets, 2-4
+    result: str              # whether performance improved (else "Not Available")
+    keywords: list[str]      # 3-5 topical keywords (lowercase English) for tagging
 
 
 SYSTEM_PROMPT = """You are a high-level paper abstraction engine.
@@ -257,6 +243,9 @@ Fill each slot of the schema:
 - method_steps: high-level pipeline 을 3~5 step 으로. 수식 없이.
 - contributions: 실제 새로움(novelty)만 2~4 bullet.
 - result: 성능 향상 여부만 한 줄 (detail 금지). 정보 없으면 "Not Available".
+- keywords: 이 논문을 대표하는 핵심 키워드 3~5개. **영어 소문자, 1~3단어**의 분야/방법 명사구.
+            서로 다른 논문이 같은 주제면 동일한 표기를 쓰도록 일반적인 용어를 사용한다.
+            예) ["causal inference", "interpretability", "sparse autoencoders"]
 """
 
 
@@ -268,12 +257,12 @@ def compress(paper: dict, sections: dict) -> PaperCard:
         f"venue: {paper.get('venue') or 'unknown'}\n"
         f"doi: {paper.get('doi') or 'none'}"
     )
-    # 메타데이터가 없으면(로컬/URL PDF) 본문 앞부분에 저자 정보가 있으므로 함께 제공
+    # Provide the body header too, since local/URL PDFs carry author info there.
     header = (paper.get("full_text") or "")[:1200]
     content = (
         f"# Paper Title\n{paper['title']}\n\n"
         f"# Metadata\n{meta}\n\n"
-        f"# Document Header (저자 추출용)\n{header}\n\n"
+        f"# Document Header (for author extraction)\n{header}\n\n"
         f"# Abstract\n{sections['abstract'] or '(none)'}\n\n"
         f"# Introduction\n{sections['intro'] or '(none)'}\n\n"
         f"# Method\n{sections['method'] or '(none)'}"
@@ -284,8 +273,7 @@ def compress(paper: dict, sections: dict) -> PaperCard:
         "response_schema": PaperCard,
         "temperature": 0.3,
     }
-    # Gemini 503(과부하) / 429(quota) 는 일시적 → 재시도.
-    # 429 응답에 retryDelay 가 있으면 그 값을 존중한다.
+    # Gemini 503 (overload) / 429 (quota) are transient — retry, honoring retryDelay.
     for attempt in range(4):
         try:
             return client.models.generate_content(
@@ -303,7 +291,7 @@ def compress(paper: dict, sections: dict) -> PaperCard:
 
 
 # ---------------------------------------------------------------------------
-# (4) Template Filler — 고정 schema → Markdown card
+# (4) Template filler — fixed schema -> Markdown card
 # ---------------------------------------------------------------------------
 def render_card(title: str, card: PaperCard, url: str | None = None) -> str:
     steps = "\n".join(f"   {i}. {s}" for i, s in enumerate(card.method_steps, 1))
@@ -335,11 +323,29 @@ def render_card(title: str, card: PaperCard, url: str | None = None) -> str:
 """
 
 
-# ---------------------------------------------------------------------------
-# 실행
-# ---------------------------------------------------------------------------
 def _slug(text: str, n: int = 60) -> str:
     return re.sub(r"[^a-z0-9]+", "_", (text or "").lower()).strip("_")[:n]
+
+
+def _norm_tag(text: str) -> str:
+    return re.sub(r"[_\s]+", " ", (text or "").strip().lower())
+
+
+def _card_tags(card: PaperCard, topic: str | None) -> list[str]:
+    """Topic + LLM keywords, normalized and deduped (order preserved)."""
+    tags: list[str] = []
+    for raw in ([topic] if topic else []) + list(card.keywords or []):
+        t = _norm_tag(raw)
+        if t and t not in tags:
+            tags.append(t)
+    return tags[:6]
+
+
+def _front_matter(tags: list[str]) -> str:
+    if not tags:
+        return ""
+    body = "".join(f"  - {t}\n" for t in tags)
+    return f"---\ntags:\n{body}---\n\n"
 
 
 def summarize(user_input: str, topic: str | None = None, out_dir: str = "cards") -> str:
@@ -356,11 +362,12 @@ def summarize(user_input: str, topic: str | None = None, out_dir: str = "cards")
     rendered = render_card(paper["title"], card, paper.get("url"))
     print(rendered)
 
-    # topic(키워드)이 있으면 cards/<topic>/ 하위에 저장 → MkDocs 에서 탭이 됨
+    # A topic becomes cards/<topic>/, which MkDocs renders as a tab.
     folder = Path(out_dir) / _slug(topic) if topic else Path(out_dir)
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{_slug(paper['title']) or 'card'}.md"
-    path.write_text(rendered, encoding="utf-8")
+    # Front-matter tags drive the Material "tags" plugin (per-keyword listing).
+    path.write_text(_front_matter(_card_tags(card, topic)) + rendered, encoding="utf-8")
     print(f"\n저장 완료: {path}")
     return rendered
 

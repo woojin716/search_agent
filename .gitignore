@@ -15,7 +15,7 @@ wheels/
 # OS
 .DS_Store
 
-# Input / generated artifacts (사이트는 로컬에서만 관리, 레포엔 코드만)
+# Input / generated artifacts 
 papers/
 .cache/
 results/

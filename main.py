@@ -1,14 +1,4 @@
-"""Literature Review Agent — OpenAlex 1차 검색 → 최근 3년 + Venue 필터 → Top 10.
-
-파이프라인
-    키워드
-      ↓ OpenAlex 검색 (관련성 순 후보 50편)
-      ↓ 최근 3년 필터 (Search Scope)
-      ↓ Venue / Citation / DOI 파싱  (arXiv 무료 PDF 링크는 보조)
-      ↓ 중복 제거 (preprint ↔ 출판본)
-      ↓ 점수화 (관련성 · Venue 수준 · 최신성 · 영향력)
-      ↓ Top 10 선정
-"""
+"""Literature review agent: OpenAlex search -> recent-years + venue filter -> Top N."""
 
 import csv
 import json
@@ -23,11 +13,10 @@ from pyalex import Works
 pyalex.config.email = "safeai.snu@gmail.com"  # OpenAlex polite pool
 
 CURRENT_YEAR = 2026
-RECENT_YEARS = 3   # 최근 3년 (Search Scope)
-CANDIDATES = 100   # OpenAlex 후보 수
-TOP_N = 50         # 최종 선정 수
+RECENT_YEARS = 3
+CANDIDATES = 100
+TOP_N = 50
 
-# AGENTS.md 의 Preferred Sources Tier → 점수
 VENUE_TIERS = {
     # Tier 1
     "neurips": 3, "neural information processing systems": 3,
@@ -40,7 +29,7 @@ VENUE_TIERS = {
     "tmlr": 1, "jmlr": 1, "nature machine intelligence": 1,
 }
 
-# OpenAlex 에 venue 데이터가 비어도 DOI 패턴으로 venue 를 추론한다.
+# Infer venue from DOI pattern when OpenAlex venue data is missing.
 DOI_VENUE_PATTERNS = [
     (r"\.acl-",   "ACL"),
     (r"\.emnlp",  "EMNLP"),
@@ -50,10 +39,10 @@ DOI_VENUE_PATTERNS = [
     (r"\.findings-emnlp", "EMNLP Findings"),
 ]
 
-# location source.type 우선순위 (실제 venue > preprint repository)
+# location source.type priority (real venue > preprint repository)
 TYPE_PRIORITY = {"conference": 3, "journal": 2, "book series": 1, "repository": 0}
 
-# 셀프 출판 / preprint 저장소 — 실제 venue 로 인정하지 않는다.
+# Self-publishing / preprint repositories — not counted as real venues.
 REPOSITORY_HINTS = (
     "arxiv", "zenodo", "ssrn", "researchgate", "biorxiv", "medrxiv",
     "preprints.org", "hal", "osf", "techrxiv", "authorea", "research square",
@@ -70,16 +59,15 @@ def normalize(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Venue 추출 / 점수
+# Venue extraction / scoring
 # ---------------------------------------------------------------------------
 def extract_venue(work: dict) -> str | None:
-    """모든 location 을 훑어 type 우선순위가 가장 높은 source 이름을 고른다.
-    source 데이터가 비어 있으면 DOI 패턴으로 추론한다."""
+    """Pick the source with the highest type priority; fall back to DOI pattern."""
     best, best_p = None, -1
     for loc in work.get("locations") or []:
         src = loc.get("source") or {}
         name = src.get("display_name")
-        if not name or is_repository(name):   # repository 는 venue 후보에서 제외
+        if not name or is_repository(name):
             continue
         p = TYPE_PRIORITY.get(src.get("type"), 0)
         if p > best_p:
@@ -87,7 +75,6 @@ def extract_venue(work: dict) -> str | None:
     if best:
         return best
 
-    # 실제 venue 가 없으면 DOI 패턴으로 추론 (없으면 preprint → None)
     doi = (work.get("doi") or "").lower()
     for pattern, venue in DOI_VENUE_PATTERNS:
         if re.search(pattern, doi):
@@ -97,12 +84,12 @@ def extract_venue(work: dict) -> str | None:
 
 def venue_score(venue: str | None) -> float:
     if not venue:
-        return 0.3  # venue 없음 = preprint
+        return 0.3  # no venue = preprint
     v = venue.lower()
     for key, score in VENUE_TIERS.items():
         if key in v:
             return score
-    return 1.0  # 인정되는 venue 이나 tier 목록 밖 (conference/journal)
+    return 1.0  # recognized venue outside the tier list
 
 
 def arxiv_url(work: dict) -> str | None:
@@ -114,7 +101,7 @@ def arxiv_url(work: dict) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# 1. OpenAlex 검색 → 후보
+# 1. OpenAlex search -> candidates
 # ---------------------------------------------------------------------------
 def search_openalex(query: str, n: int = CANDIDATES) -> list[dict]:
     start = f"{CURRENT_YEAR - RECENT_YEARS + 1}-01-01"
@@ -138,17 +125,17 @@ def search_openalex(query: str, n: int = CANDIDATES) -> list[dict]:
             "venue_score": venue_score(venue),
             "citations": w.get("cited_by_count", 0),
             "doi": (w.get("doi") or "").replace("https://doi.org/", "") or None,
-            "url": w.get("id"),                 # OpenAlex landing
-            "arxiv_url": arxiv_url(w),          # 무료 PDF (보조)
-            "grade": None,                      # OpenReview 합격등급 (있으면 병합 시 채움)
+            "url": w.get("id"),
+            "arxiv_url": arxiv_url(w),
+            "grade": None,
             "source": "openalex",
-            "relevance": max(0.0, 1.0 - rank / n),   # 검색 관련성 순위 → 0~1
+            "relevance": max(0.0, 1.0 - rank / n),
         })
     return papers
 
 
 # ---------------------------------------------------------------------------
-# 2. OpenReview — ICLR / NeurIPS 합격작 (Tier 1 보조 소스)
+# 2. OpenReview — accepted ICLR / NeurIPS / ICML papers (Tier 1 supplement)
 # ---------------------------------------------------------------------------
 OPENREVIEW_FAMILIES = ["ICLR.cc", "NeurIPS.cc", "ICML.cc"]
 CACHE_DIR = Path(".cache/openreview")
@@ -175,7 +162,7 @@ def _val(content: dict, key: str):
 
 
 def _fetch_venue(client, venue_id: str) -> list[dict]:
-    """venue 의 합격작 전체를 받아 캐시. (제목/저자/초록/등급/forum)"""
+    """Fetch and cache all accepted papers of a venue."""
     cache = CACHE_DIR / (venue_id.replace("/", "_") + ".json")
     if cache.exists():
         return json.loads(cache.read_text(encoding="utf-8"))
@@ -192,7 +179,7 @@ def _fetch_venue(client, venue_id: str) -> list[dict]:
             "title": title,
             "authors": _val(n.content, "authors") or [],
             "abstract": _val(n.content, "abstract") or "",
-            "venue_str": _val(n.content, "venue") or venue_id,   # "ICLR 2024 oral"
+            "venue_str": _val(n.content, "venue") or venue_id,
             "forum": n.forum,
         })
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -225,15 +212,15 @@ def search_openreview(query: str) -> list[dict]:
                 "title": p["title"].strip(),
                 "authors": p["authors"],
                 "year": year,
-                "venue": p["venue_str"],                 # "ICLR 2024 oral"
+                "venue": p["venue_str"],
                 "venue_score": venue_score(p["venue_str"]),
-                "citations": None,                       # OpenAlex 병합 시 채움
+                "citations": None,
                 "doi": None,
                 "url": f"https://openreview.net/forum?id={p['forum']}",
                 "arxiv_url": None,
                 "grade": parse_grade(p["venue_str"]),
+                "relevance": 1.0 if in_title else 0.7,  # title match ranks higher
                 "source": "openreview",
-                "relevance": 1.0 if in_title else 0.7,   # 제목 매칭이면 관련성↑
             })
         if matched:
             print(f"      {vid}: {matched}편 매칭")
@@ -241,7 +228,7 @@ def search_openreview(query: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# 3. 소스 병합 + 중복 제거 (제목 기준) — venue/등급은 OR, 인용/DOI는 OpenAlex
+# 3. Merge sources + dedupe by title (venue/grade: best-of; citations/DOI: OpenAlex)
 # ---------------------------------------------------------------------------
 def merge_sources(*lists: list[dict]) -> list[dict]:
     merged: dict[str, dict] = {}
@@ -254,13 +241,13 @@ def merge_sources(*lists: list[dict]) -> list[dict]:
             if m is None:
                 merged[key] = dict(p)
                 continue
-            # 인용수 / DOI / arXiv 링크 / 등급 — 비어있는 쪽을 채운다.
+            # Fill empty fields from the other source.
             if m["citations"] is None and p["citations"] is not None:
                 m["citations"] = p["citations"]
             for f in ("doi", "arxiv_url", "grade"):
                 if not m.get(f) and p.get(f):
                     m[f] = p[f]
-            # venue — tier 높은 쪽 우선 (보통 OpenReview)
+            # Keep the higher-tier venue (usually OpenReview).
             if p["venue_score"] > m["venue_score"]:
                 m["venue"], m["venue_score"] = p["venue"], p["venue_score"]
             m["relevance"] = max(m["relevance"], p["relevance"])
@@ -270,26 +257,22 @@ def merge_sources(*lists: list[dict]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# 4. 점수화 → Top N
+# 4. Scoring -> Top N
 # ---------------------------------------------------------------------------
 GRADE_BONUS = {"oral": 1.0, "spotlight": 0.6, "poster": 0.3}
 
 
 def selection_score(p: dict) -> float:
     relevance = p["relevance"]
-    venue = p["venue_score"] / 3.0                              # 0 ~ 1
+    venue = p["venue_score"] / 3.0
     recency = max(0.0, 1.0 - (CURRENT_YEAR - p["year"]) / RECENT_YEARS)
-    # 인용수는 log 스케일 — 데이터 이상치 / 누적 편향 완화 (1000회 ≈ 만점)
+    # Log-scaled citations to dampen outliers / accumulation bias (~1000 = full).
     impact = min(1.0, math.log10((p["citations"] or 0) + 1) / 3.0)
-    grade = GRADE_BONUS.get(p["grade"], 0.0)                    # 합격등급 보너스
-    # 2026(최신) 우선 → recency 비중 유지, 합격등급 신호 추가
+    grade = GRADE_BONUS.get(p["grade"], 0.0)
     return (0.22 * relevance + 0.35 * venue + 0.18 * recency
             + 0.13 * impact + 0.12 * grade)
 
 
-# ---------------------------------------------------------------------------
-# 4. APA 7th
-# ---------------------------------------------------------------------------
 def apa_citation(p: dict) -> str:
     authors = p["authors"]
     if not authors:
@@ -304,7 +287,7 @@ def apa_citation(p: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 결과 저장 — 파일명에 검색 키워드 포함
+# Output — CSV (filename slugged from the query)
 # ---------------------------------------------------------------------------
 CSV_COLUMNS = [
     "select", "no", "year", "venue", "grade", "title", "authors",
@@ -316,13 +299,13 @@ def save_results(query: str, papers: list[dict], out_dir: str = "results") -> Pa
     slug = re.sub(r"[^a-z0-9]+", "_", query.lower()).strip("_") or "query"
     path = Path(out_dir) / f"{slug}.csv"
     path.parent.mkdir(parents=True, exist_ok=True)
-    # utf-8-sig → Excel 에서 한글/유니코드 깨짐 방지
+    # utf-8-sig keeps Unicode readable in Excel.
     with path.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
         writer.writeheader()
         for i, p in enumerate(papers, 1):
             writer.writerow({
-                "select": "",                              # 선별용 빈 칸 (✓ 표시)
+                "select": "",
                 "no": i,
                 "title": p["title"],
                 "authors": "; ".join(p["authors"]),
@@ -340,7 +323,7 @@ def save_results(query: str, papers: list[dict], out_dir: str = "results") -> Pa
 
 
 # ---------------------------------------------------------------------------
-# 사이트용 — 검색 결과를 Markdown 표 페이지로 (cards/searches/ → "Searches" 탭)
+# Output — Markdown table page (cards/searches/ -> "Searches" tab)
 # ---------------------------------------------------------------------------
 def save_search_page(query: str, papers: list[dict],
                      out_dir: str = "cards/searches") -> Path:
@@ -348,7 +331,7 @@ def save_search_page(query: str, papers: list[dict],
     path = Path(out_dir) / f"{slug}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    def cell(text: str) -> str:                       # 표 안 파이프 깨짐 방지
+    def cell(text: str) -> str:  # escape pipes inside table cells
         return str(text).replace("|", "\\|")
 
     rows = [f"# {query}", "",
@@ -365,9 +348,6 @@ def save_search_page(query: str, papers: list[dict],
     return path
 
 
-# ---------------------------------------------------------------------------
-# 실행
-# ---------------------------------------------------------------------------
 def main():
     query = input("검색어: ").strip()
 
@@ -386,7 +366,7 @@ def main():
     print(f"[4/4] 점수화 후 Top {TOP_N} 선정...\n")
     for p in papers:
         p["score"] = selection_score(p)
-    # 1) 점수로 Top N 선별 → 2) 표시는 연도(2026 우선)·venue tier·점수 순으로 정렬
+    # Select Top N by score, then display ordered by year / venue tier / score.
     top = sorted(papers, key=lambda p: p["score"], reverse=True)[:TOP_N]
     top.sort(key=lambda p: (p["year"], p["venue_score"], p["score"]), reverse=True)
 
