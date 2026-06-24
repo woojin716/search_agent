@@ -34,3 +34,4 @@ markdown_extensions:
 
 plugins:
   - search
+  - awesome-pages   # cards/.pages 로 탭(폴더) 순서 제어

@@ -352,7 +352,6 @@ def save_search_page(query: str, papers: list[dict],
         return str(text).replace("|", "\\|")
 
     rows = [f"# {query}", "",
-            f"검색 결과 Top {len(papers)}.", "",
             "| # | Year | Venue | Title |",
             "|---|------|-------|-------|"]
     for i, p in enumerate(papers, 1):
