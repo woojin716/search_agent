@@ -1,9 +1,13 @@
 """Literature review agent: OpenAlex search -> recent-years + venue filter -> Top N."""
 
+from __future__ import annotations  # allow `str | None` syntax on Python 3.9
+
 import csv
 import json
 import math
+import os
 import re
+import sys
 from pathlib import Path
 
 import openreview
@@ -11,6 +15,23 @@ import pyalex
 from pyalex import Works
 
 pyalex.config.email = "safeai.snu@gmail.com"  # OpenAlex polite pool
+
+
+def _load_env(path: str = ".env") -> None:
+    """Load KEY=VALUE lines from a local .env file into os.environ (no dependency).
+
+    Used for OpenReview credentials so they live in a gitignored file, not the shell.
+    """
+    p = Path(__file__).parent / path
+    if not p.exists():
+        return
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+
 
 CURRENT_YEAR = 2026
 RECENT_YEARS = 3
@@ -162,14 +183,15 @@ def _val(content: dict, key: str):
 
 
 def _fetch_venue(client, venue_id: str) -> list[dict]:
-    """Fetch and cache all accepted papers of a venue."""
+    """Fetch and cache all accepted papers of a venue.
+
+    Raises on API errors (e.g. the anonymous-access challenge) so the caller can
+    report them instead of silently returning an empty result.
+    """
     cache = CACHE_DIR / (venue_id.replace("/", "_") + ".json")
     if cache.exists():
         return json.loads(cache.read_text(encoding="utf-8"))
-    try:
-        notes = client.get_all_notes(content={"venueid": venue_id})
-    except Exception:
-        return []
+    notes = client.get_all_notes(content={"venueid": venue_id})
     papers = []
     for n in notes:
         title = _val(n.content, "title")
@@ -188,16 +210,32 @@ def _fetch_venue(client, venue_id: str) -> list[dict]:
 
 
 def search_openreview(query: str) -> list[dict]:
+    # OpenReview now gates anonymous bulk access behind an anti-bot challenge.
+    # Logging in with an account bypasses it; set these to enable the supplement.
+    user = os.environ.get("OPENREVIEW_USERNAME")
+    pw = os.environ.get("OPENREVIEW_PASSWORD")
     try:
-        client = openreview.api.OpenReviewClient(baseurl="https://api2.openreview.net")
+        client = openreview.api.OpenReviewClient(
+            baseurl="https://api2.openreview.net", username=user, password=pw,
+        )
     except Exception as e:
-        print(f"  [warn] OpenReview 연결 실패: {e}")
+        print(f"  [warn] OpenReview connection failed: {e}")
         return []
 
     words = [w for w in normalize(query).split() if w]
     results = []
     for vid in _openreview_venue_ids():
-        venue_papers = _fetch_venue(client, vid)
+        try:
+            venue_papers = _fetch_venue(client, vid)
+        except Exception as e:
+            # A challenge/403 will hit every venue the same way — stop and explain.
+            if "Challenge" in str(e) and not user:
+                print("  [warn] OpenReview anonymous access is blocked (anti-bot challenge).")
+                print("         Set OPENREVIEW_USERNAME / OPENREVIEW_PASSWORD to enable the")
+                print("         ICLR/NeurIPS/ICML supplement. Using OpenAlex results only.")
+            else:
+                print(f"  [warn] OpenReview fetch failed ({vid}): {str(e)[:100]}")
+            return results
         if not venue_papers:
             continue
         year = int(re.search(r"\d{4}", vid).group())
@@ -223,7 +261,7 @@ def search_openreview(query: str) -> list[dict]:
                 "source": "openreview",
             })
         if matched:
-            print(f"      {vid}: {matched}편 매칭")
+            print(f"      {vid}: {matched} matched")
     return results
 
 
@@ -290,7 +328,7 @@ def apa_citation(p: dict) -> str:
 # Output — CSV (filename slugged from the query)
 # ---------------------------------------------------------------------------
 CSV_COLUMNS = [
-    "select", "no", "year", "venue", "grade", "title", "authors",
+    "select", "no", "year", "venue", "title", "authors",
     "citations", "doi", "url", "arxiv_url", "score", "apa",
 ]
 
@@ -311,7 +349,6 @@ def save_results(query: str, papers: list[dict], out_dir: str = "results") -> Pa
                 "authors": "; ".join(p["authors"]),
                 "year": p["year"],
                 "venue": p["venue"] or "Not Available",
-                "grade": p["grade"] or "",
                 "citations": "" if p["citations"] is None else p["citations"],
                 "doi": p["doi"] or "",
                 "url": p["url"] or "",
@@ -334,14 +371,18 @@ def save_search_page(query: str, papers: list[dict],
     def cell(text: str) -> str:  # escape pipes inside table cells
         return str(text).replace("|", "\\|")
 
-    rows = [f"# {query}", "",
-            "| # | Year | Venue | Title |",
-            "|---|------|-------|-------|"]
+    rows = [
+        f"# {query}",
+        "",
+        f"**{len(papers)} papers** · last {RECENT_YEARS} years · ranked by relevance · venue · recency · impact",
+        "",
+        "| # | Year | Venue | Title |",
+        "|:-:|:----:|-------|-------|",
+    ]
     for i, p in enumerate(papers, 1):
         link = p["url"] or p["arxiv_url"]
         title = f"[{cell(p['title'])}]({link})" if link else cell(p["title"])
-        grade = f" ({p['grade']})" if p["grade"] else ""
-        venue = cell((p["venue"] or "N/A") + grade)
+        venue = cell(p["venue"] or "N/A")
         rows.append(f"| {i} | {p['year']} | {venue} | {title} |")
 
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
@@ -349,21 +390,26 @@ def save_search_page(query: str, papers: list[dict],
 
 
 def main():
-    query = input("검색어: ").strip()
+    _load_env()  # pick up OpenReview credentials from a local .env file, if present
+    # Query can come from the command line (scriptable) or an interactive prompt.
+    query = " ".join(sys.argv[1:]).strip() or input("Query: ").strip()
+    if not query:
+        print("A query is required.")
+        return
 
-    print(f"\n[1/4] OpenAlex 후보 {CANDIDATES}편 검색 (최근 {RECENT_YEARS}년)...")
+    print(f"\n[1/4] OpenAlex candidates ({CANDIDATES}, last {RECENT_YEARS} years)...")
     oa = search_openalex(query)
-    print(f"      {len(oa)}편 수집")
+    print(f"      {len(oa)} collected")
 
-    print("[2/4] OpenReview 검색 (ICLR / NeurIPS 합격작)...")
+    print("[2/4] OpenReview (accepted ICLR / NeurIPS / ICML)...")
     orv = search_openreview(query)
-    print(f"      {len(orv)}편 매칭")
+    print(f"      {len(orv)} matched")
 
-    print("[3/4] 소스 병합 + 중복 제거...")
+    print("[3/4] Merge sources + dedupe...")
     papers = merge_sources(oa, orv)
-    print(f"      {len(papers)}편 (병합 후)")
+    print(f"      {len(papers)} after merge")
 
-    print(f"[4/4] 점수화 후 Top {TOP_N} 선정...\n")
+    print(f"[4/4] Scoring -> Top {TOP_N}...\n")
     for p in papers:
         p["score"] = selection_score(p)
     # Select Top N by score, then display ordered by year / venue tier / score.
@@ -371,10 +417,9 @@ def main():
     top.sort(key=lambda p: (p["year"], p["venue_score"], p["score"]), reverse=True)
 
     for i, p in enumerate(top, 1):
-        grade = f" ({p['grade']})" if p["grade"] else ""
         cites = "N/A" if p["citations"] is None else p["citations"]
         print("=" * 60)
-        print(f"[{i}] {p['year']} | {p['venue'] or 'Not Available'}{grade}")
+        print(f"[{i}] {p['year']} | {p['venue'] or 'Not Available'}")
         print(f"    Title    : {p['title']}")
         print(f"    Citations: {cites}")
         print(f"    DOI      : {p['doi'] or 'Not Available'}")
@@ -386,8 +431,8 @@ def main():
     path = save_results(query, top)
     page = save_search_page(query, top)
     print("\n" + "=" * 60)
-    print(f"저장 완료: {path}  ({len(top)}편)")
-    print(f"사이트 페이지: {page}  (mkdocs 'Searches' 탭)")
+    print(f"Saved: {path}  ({len(top)} papers)")
+    print(f"Site page: {page}  (mkdocs 'Searches' tab)")
 
 
 if __name__ == "__main__":

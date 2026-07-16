@@ -1,38 +1,75 @@
-site_name: Paper Cards
-site_description: Collection of high-level paper cards
+site_name: Literature Review Bot
+site_description: Literature Review Bot
 site_url: https://woojin716.github.io/search_agent/
 docs_dir: cards
 
+repo_url: https://github.com/woojin716/search_agent
+repo_name: woojin716/search_agent
+
 theme:
   name: material
-  language: ko
+  language: en
+  icon:
+    logo: material/robot-outline
+    repo: fontawesome/brands/github
+  favicon: https://raw.githubusercontent.com/squidfunk/mkdocs-material/master/material/templates/assets/images/favicon.png
+  font:
+    text: Inter
+    code: JetBrains Mono
   palette:
-    - scheme: default
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep purple
       toggle:
         icon: material/weather-night
-        name: 다크 모드
-    - scheme: slate
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: deep purple
       toggle:
         icon: material/weather-sunny
-        name: 라이트 모드
+        name: Switch to light mode
   features:
-    - navigation.tabs        # top tabs = folders
-    - navigation.sections    # papers as sidebar sections
-    - navigation.instant
-    - navigation.top
+    - navigation.tabs          # top tabs = folders
+    - navigation.tabs.sticky   # keep tabs visible on scroll
+    - navigation.sections      # papers as sidebar sections
+    - navigation.top           # back-to-top button
+    - navigation.tracking      # URL follows the active anchor
+    - navigation.instant       # SPA-like page loads
+    - navigation.instant.progress
+    - navigation.footer        # prev/next footer
+    - toc.follow
     - search.suggest
     - search.highlight
+    - search.share
     - content.code.copy
+    - content.tooltips
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - def_list
   - md_in_html        # render Markdown inside <div markdown>
+  - tables
   - pymdownx.highlight
   - pymdownx.superfences
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - toc:
       permalink: true
 
 plugins:
   - search
   - awesome-pages   # control tab/folder order via cards/.pages
-  - tags   # tag listing renders at the <!-- material/tags --> marker in tags.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/woojin716/search_agent
+  generator: false

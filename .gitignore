@@ -15,11 +15,17 @@ wheels/
 # OS
 .DS_Store
 
-# Input / generated artifacts 
+# Input / generated artifacts
 papers/
 .cache/
 results/
-cards/
+
+# Generated search pages, but keep the hand-authored site chrome (landing / CSS / nav).
+cards/**
+!cards/index.md
+!cards/.pages
+!cards/stylesheets/
+!cards/stylesheets/extra.css
 
 # MkDocs build output
 site/

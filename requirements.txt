@@ -1,0 +1,7 @@
+# Search (main.py)
+openreview-py>=2.2.3
+pyalex>=0.21
+
+# Site preview / deploy (mkdocs) — optional, only if you build the site
+mkdocs-material>=9.7.6
+mkdocs-awesome-pages-plugin>=2.10.1
