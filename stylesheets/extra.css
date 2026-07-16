@@ -1,0 +1,108 @@
+/* ==========================================================================
+   AI Paper Search — custom theme
+   ========================================================================== */
+
+:root {
+  --md-primary-fg-color:        #4f46e5;
+  --md-primary-fg-color--light: #6366f1;
+  --md-primary-fg-color--dark:  #4338ca;
+  --md-accent-fg-color:         #7c3aed;
+  --ap-surface:  #ffffff;
+  --ap-border:   #e6e8f0;
+  --ap-muted:    #6b7280;
+  --ap-zebra:    #f7f8fc;
+  --ap-hover:    #eef0fe;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        #818cf8;
+  --md-primary-fg-color--light: #a5b4fc;
+  --md-primary-fg-color--dark:  #6366f1;
+  --md-accent-fg-color:         #a78bfa;
+  --ap-surface:  #1b1c2b;
+  --ap-border:   #2c2e44;
+  --ap-muted:    #9aa0b4;
+  --ap-zebra:    #191a27;
+  --ap-hover:    #23263a;
+}
+
+/* ---- Typography -------------------------------------------------------- */
+.md-typeset {
+  font-feature-settings: "kern", "liga", "calt";
+}
+.md-typeset h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* ---- Wide content area (roomy tables) ---------------------------------- */
+.md-grid {
+  max-width: 90rem;   /* default is 61rem — widen for the result tables */
+}
+
+/* ---- Result tables ----------------------------------------------------- */
+.md-typeset table:not([class]) {
+  display: table;     /* override Material's inline-block so it fills width */
+  width: 100%;
+  border: 1px solid var(--ap-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  font-size: 0.76rem;
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--md-primary-fg-color);
+  color: #fff;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.66rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.md-typeset table:not([class]) td {
+  border: none;
+  border-top: 1px solid var(--ap-border);
+  vertical-align: middle;
+  padding: 0.6em 0.9em;
+}
+
+.md-typeset table:not([class]) tr:nth-child(even) td {
+  background: var(--ap-zebra);
+}
+
+.md-typeset table:not([class]) tbody tr {
+  transition: background 0.12s ease;
+}
+.md-typeset table:not([class]) tbody tr:hover td {
+  background: var(--ap-hover);
+}
+
+/* Make the paper-title links carry the weight */
+.md-typeset table:not([class]) td a {
+  font-weight: 600;
+  text-decoration: none;
+}
+.md-typeset table:not([class]) td a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Center the # and Year columns */
+.md-typeset table:not([class]) td:first-child,
+.md-typeset table:not([class]) th:first-child,
+.md-typeset table:not([class]) td:nth-child(2),
+.md-typeset table:not([class]) th:nth-child(2) {
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Venue column reads as a subtle label */
+.md-typeset table:not([class]) td:nth-child(3) {
+  color: var(--ap-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}

@@ -2,74 +2,14 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://woojin716.github.io/search_agent/</loc>
-         <lastmod>2026-06-24</lastmod>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
-         <loc>https://woojin716.github.io/search_agent/tags/</loc>
-         <lastmod>2026-06-24</lastmod>
+         <loc>https://woojin716.github.io/search_agent/searches/causal_representation/</loc>
+         <lastmod>2026-07-16</lastmod>
     </url>
     <url>
-         <loc>https://woojin716.github.io/search_agent/causal_inference/adjusting_prediction_model_through_wasserstein_geodesic_for_/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/causal_inference/exploratory_causal_inference_in_saence/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/causal_inference/foundation_models_for_causal_inference_via_prior_data_fitted/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/causal_inference/preference_learning_for_ai_alignment_a_causal_perspective/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/counterfactual_explanation/atex_cf_attack_informed_counterfactual_explanations_for_grap/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/etc/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/llm_interpretability/addressing_divergent_representations_from_causal_interventio/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/llm_interpretability/axbench_steering_llms_even_simple_baselines_outperform_spars/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/llm_interpretability/causality_invariance_function_and_concept_vectors_in_llms/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/llm_interpretability/sparse_feature_circuits_discovering_and_editing_interpretabl/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/llm_interpretability/verifying_chain_of_thought_reasoning_via_its_computational_g/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/searches/causal_ai/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/searches/concept_vector/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/searches/counterfactual_generation/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/searches/diffusion/</loc>
-         <lastmod>2026-06-24</lastmod>
-    </url>
-    <url>
-         <loc>https://woojin716.github.io/search_agent/searches/flow_matching/</loc>
-         <lastmod>2026-06-24</lastmod>
+         <loc>https://woojin716.github.io/search_agent/searches/llm_interpretability/</loc>
+         <lastmod>2026-07-16</lastmod>
     </url>
 </urlset>
